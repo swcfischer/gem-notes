@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   AuthFrame,
@@ -7,6 +7,7 @@ import {
   Eyebrow,
   Feedback,
   Heading,
+  LanguageSelect,
   NoteTitleInput,
   NoteForm,
   SaveButton,
@@ -14,14 +15,19 @@ import {
 } from "../components/NoteEditor.styles.jsx";
 
 export default function AuthPage() {
-  const { login, register, error: serverError } = useAuth();
+  const { accounts, login, register, error: authError } = useAuth();
 
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(accounts.length === 0);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!accounts.some((account) => account.id === accountId)) {
+      setAccountId(accounts[0]?.id ?? "");
+    }
+  }, [accounts, accountId]);
 
   async function submit(event) {
     event.preventDefault();
@@ -30,9 +36,9 @@ export default function AuthPage() {
 
     try {
       if (isRegistering) {
-        await register({ name, email, password });
+        await register({ name });
       } else {
-        await login({ email, password });
+        await login({ id: accountId });
       }
     } catch (submitError) {
       setError(submitError.message || "Couldn't authenticate.");
@@ -49,8 +55,8 @@ export default function AuthPage() {
       </Heading>
       <Description>
         {isRegistering
-          ? "Sign up to keep your notes private and available to you."
-          : "Sign in to continue to your notes."}
+          ? "Create a local profile to keep notes on this device. No email or password is collected."
+          : "Choose a local profile to continue to its notes."}
       </Description>
       <NoteForm onSubmit={submit}>
         {isRegistering && (
@@ -63,58 +69,49 @@ export default function AuthPage() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={100}
-              required
+            required
             />
           </div>
         )}
-        <div>
-          <EditorLabel htmlFor="account-email">Email</EditorLabel>
-          <NoteTitleInput
-            id="account-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+        {!isRegistering && (
+          <div>
+            <EditorLabel htmlFor="account-profile">Local profile</EditorLabel>
+            <LanguageSelect
+            id="account-profile"
+            value={accountId}
+            onChange={(event) => setAccountId(event.target.value)}
             required
-          />
-        </div>
-        <div>
-          <EditorLabel htmlFor="account-password">Password</EditorLabel>
-          <NoteTitleInput
-            id="account-password"
-            name="password"
-            type="password"
-            autoComplete={isRegistering ? "new-password" : "current-password"}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={8}
-            maxLength={128}
-            required
-          />
-        </div>
+            >
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+            </LanguageSelect>
+          </div>
+        )}
         <SaveButton type="submit" disabled={isSubmitting}>
           {isSubmitting
             ? "Please wait..."
             : isRegistering
-              ? "Create account"
-              : "Sign in"}
+            ? "Create profile"
+            : "Continue"}
         </SaveButton>
-        {(error || serverError) && (
-          <Feedback role="alert">{error || serverError}</Feedback>
+        {(error || authError) && (
+          <Feedback role="alert">{error || authError}</Feedback>
         )}
       </NoteForm>
-      <TextButton
-        type="button"
-        onClick={() => {
-          setIsRegistering((current) => !current);
-          setError("");
-        }}
-      >
-        {isRegistering
-          ? "Already have an account? Sign in"
-          : "New to Gem Notes? Create an account"}
-      </TextButton>
+      {accounts.length > 0 && (
+        <TextButton
+          type="button"
+          onClick={() => {
+            setIsRegistering((current) => !current);
+            setError("");
+          }}
+        >
+          {isRegistering ? "Choose an existing profile" : "Create a profile"}
+        </TextButton>
+      )}
     </AuthFrame>
   );
 }

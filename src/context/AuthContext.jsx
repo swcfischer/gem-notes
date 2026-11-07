@@ -1,87 +1,87 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { readApiResponse } from "../utils/api.js";
 
 export const AuthContext = createContext(null);
-const USERS_URL = "/api/users";
 
-async function postAuthRequest(path, values, fallbackMessage) {
-  const response = await fetch(`${USERS_URL}/${path}`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(values),
-  });
-  return readApiResponse(response, fallbackMessage);
+const ACCOUNTS_STORAGE_KEY = "gem-notes-accounts";
+const ACTIVE_ACCOUNT_STORAGE_KEY = "gem-notes-active-account";
+
+function readAccounts() {
+  const storedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+  if (!storedAccounts) {
+    return [];
+  }
+
+  const accounts = JSON.parse(storedAccounts);
+  if (
+    !Array.isArray(accounts) ||
+    accounts.some(
+      (account) =>
+        !account ||
+        typeof account.id !== "string" ||
+        typeof account.name !== "string",
+    )
+  ) {
+    throw new Error("Saved accounts have an invalid format.");
+  }
+
+  return accounts.map(({ id, name }) => ({ id, name }));
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadUser() {
-      try {
-        const response = await fetch(`${USERS_URL}/me`, {
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
-        if (response.status === 401) {
-          setUser(null);
-          return;
-        }
-        const result = await readApiResponse(
-          response,
-          "Couldn't verify your account.",
-        );
-        setUser(result.user);
-      } catch (loadError) {
-        if (!controller.signal.aborted) {
-          setError(loadError.message || "Couldn't verify your account.");
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
+    try {
+      const savedAccounts = readAccounts();
+      const activeAccountId = localStorage.getItem(ACTIVE_ACCOUNT_STORAGE_KEY);
+      setAccounts(savedAccounts);
+      setUser(
+        savedAccounts.find((account) => account.id === activeAccountId) ?? null,
+      );
+    } catch (loadError) {
+      setError(loadError.message || "Couldn't load your local account.");
+    } finally {
+      setIsLoading(false);
     }
-
-    loadUser();
-    return () => controller.abort();
   }, []);
 
-  async function login(values) {
-    const result = await postAuthRequest("login", values, "Couldn't sign in.");
-    setUser(result.user);
+  async function register({ name }) {
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    if (!trimmedName || trimmedName.length > 100) {
+      throw new Error("Enter a name up to 100 characters long.");
+    }
+
+    const account = { id: crypto.randomUUID(), name: trimmedName };
+    const updatedAccounts = [...accounts, account];
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+    localStorage.setItem(ACTIVE_ACCOUNT_STORAGE_KEY, account.id);
+    setAccounts(updatedAccounts);
+    setUser(account);
     setError("");
   }
 
-  async function register(values) {
-    const result = await postAuthRequest(
-      "register",
-      values,
-      "Couldn't create your account.",
-    );
-    setUser(result.user);
+  async function login({ id }) {
+    const account = accounts.find((savedAccount) => savedAccount.id === id);
+    if (!account) {
+      throw new Error("Select an account saved on this device.");
+    }
+
+    localStorage.setItem(ACTIVE_ACCOUNT_STORAGE_KEY, account.id);
+    setUser(account);
     setError("");
   }
 
   async function logout() {
-    const response = await fetch(`${USERS_URL}/logout`, {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    if (!response.ok) {
-      await readApiResponse(response, "Couldn't sign out.");
-    }
+    localStorage.removeItem(ACTIVE_ACCOUNT_STORAGE_KEY);
     setUser(null);
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, error, login, register, logout }}
+      value={{ user, accounts, isLoading, error, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>
