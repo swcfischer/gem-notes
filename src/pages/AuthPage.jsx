@@ -23,7 +23,7 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event) {
+  async function submit(event) {
     event.preventDefault();
     setIsSubmitting(true);
     setError("");
