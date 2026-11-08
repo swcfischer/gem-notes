@@ -69,7 +69,7 @@ export default function AuthPage() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={100}
-            required
+              required
             />
           </div>
         )}
@@ -77,16 +77,16 @@ export default function AuthPage() {
           <div>
             <EditorLabel htmlFor="account-profile">Local profile</EditorLabel>
             <LanguageSelect
-            id="account-profile"
-            value={accountId}
-            onChange={(event) => setAccountId(event.target.value)}
-            required
+              id="account-profile"
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+              required
             >
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
             </LanguageSelect>
           </div>
         )}
@@ -94,8 +94,8 @@ export default function AuthPage() {
           {isSubmitting
             ? "Please wait..."
             : isRegistering
-            ? "Create profile"
-            : "Continue"}
+              ? "Create profile"
+              : "Continue"}
         </SaveButton>
         {(error || authError) && (
           <Feedback role="alert">{error || authError}</Feedback>

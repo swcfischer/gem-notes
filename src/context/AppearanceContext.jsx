@@ -23,7 +23,8 @@ export const APP_THEMES = [
   { id: "raven", name: "Raven", description: "Black with a cool violet edge" },
 ];
 
-const DEFAULT_THEME = APP_THEMES[0];
+const DEFAULT_THEME =
+  APP_THEMES.find(({ id }) => id === "espresso") ?? APP_THEMES[0];
 const AppearanceContext = createContext(null);
 
 function getInitialAppearance() {
